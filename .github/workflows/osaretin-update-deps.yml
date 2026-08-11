@@ -1,0 +1,57 @@
+name: OSARETIN: Update Go dependencies
+on:
+  workflow_dispatch:
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.26'
+
+      - name: Update Go module dependencies
+        run: |
+          set -e
+          go env
+          # Update modules to latest minor/patch where available.
+          go get -u ./...
+          # Tidy up modules and sums.
+          go mod tidy
+          # Configure git user for commits
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage changes if any
+          git add go.mod go.sum || true
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "chore: update Go dependencies (OSARETIN)" || true
+          fi
+
+      - name: Run go fmt
+        run: |
+          set -e
+          go fmt ./...
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "style: go fmt (OSARETIN)" || true
+          fi
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: chore: update Go dependencies (OSARETIN)
+          title: chore: update Go dependencies (OSARETIN)
+          body: |
+            Automated dependency update and formatting triggered by OSARETIN.
+
+            This workflow runs `go get -u ./...`, `go mod tidy`, and `go fmt ./...`.
+            Review the generated PR and run CI before merging.
+          branch: osaretin/update-go-deps
+          base: ${{ github.event.repository.default_branch }}
